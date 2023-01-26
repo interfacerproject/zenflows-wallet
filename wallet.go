@@ -14,7 +14,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-contrib/cors"
 
 	"github.com/go-redis/redis/v8"
 	"context"
@@ -37,6 +36,22 @@ type AddTokens struct {
 	Owner  string `json:"owner"`
 	Amount int64    `json:"amount"`
 	Token  string `json:"token"`
+}
+
+func CORS() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
 }
 
 func (wallet *Wallet) addTokensHandler(c *gin.Context) {
@@ -135,7 +150,8 @@ func main() {
 	}
 
 	r := gin.Default()
-	r.Use(cors.Default())
+	r.SetTrustedProxies(nil)
+	r.Use(CORS())
 	r.POST("/token", wallet.addTokensHandler)
 	r.GET("/token/:token/:owner", wallet.getTokenHandler)
 	r.Run()

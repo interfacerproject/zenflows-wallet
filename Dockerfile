@@ -11,6 +11,7 @@ FROM dyne/devuan:chimaera
 WORKDIR /root
 ENV HOST=0.0.0.0
 ENV PORT=80
+ENV GIN_MODE=release
 EXPOSE 80
 COPY --from=builder /app/wallet /root/
 COPY --from=builder /zenroom/meson/libzenroom.so /usr/lib/
