@@ -135,8 +135,8 @@ func main() {
 	}
 
 	r := gin.Default()
+	r.Use(cors.Default())
 	r.POST("/token", wallet.addTokensHandler)
 	r.GET("/token/:token/:owner", wallet.getTokenHandler)
-	r.Use(cors.Default())
 	r.Run()
 }
