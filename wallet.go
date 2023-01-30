@@ -1,5 +1,3 @@
-//go:build ignore
-
 package main
 
 import (
@@ -66,6 +64,7 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		result["error"] = err.Error()
 		return
 	}
+	fmt.Println(body)
 
 	// Verify signature request
 	zenroomData := ZenroomData{
@@ -79,10 +78,11 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		result["error"] = err.Error()
 		return
 	}
-	if err := zenroomData.requestPublicKey(wallet.ZenflowsUrl, addTokens.Owner); err != nil {
+	if err := zenroomData.requestPublicKey(wallet.ZenflowsUrl, c.Request.Header.Get("zenflows-id")); err != nil {
 		result["error"] = err.Error()
 		return
 	}
+	fmt.Println(c.Request.Header)
 	
 	if err := zenroomData.isAuth(); err != nil {
 		result["error"] = err.Error()

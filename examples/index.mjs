@@ -11,14 +11,15 @@ const PAPERINO_EDDSA = "H7sbugVBZbmRX6M75WpzCi5vVVtaxvfLhovDijRAnZj"
 const PAPERINO_ID = "062TE18QJSQJ1PY6G1M7783148"
 
 const url="http://localhost:8000"
-//const url="https://gateway0.interfacer.dyne.org/inbox"
+//const url="https://gateway0.interfacer.dyne.org/wallet"
 
-const signRequest = async (json, key) => {
+const signRequest = async (json, key, id) => {
 	const data = `{"gql": "${Buffer.from(json, 'utf8').toString('base64')}"}`
     const keys = `{"keyring": {"eddsa": "${key}"}}`
 	const {result} = await zencode_exec(sign(), {data, keys});
 	return {
-		'zenflows-sign': JSON.parse(result).eddsa_signature
+		'zenflows-sign': JSON.parse(result).eddsa_signature,
+		'zenflows-id': id,
 	}
 }
 
@@ -29,7 +30,7 @@ const sendMessage = async () => {
 	    owner: "062TE0H7591KJCVT3DDEMDBF0R",
     }
     const requestJSON = JSON.stringify(request)
-    const requestHeaders =  await signRequest(requestJSON, PIPPO_EDDSA);
+    const requestHeaders =  await signRequest(requestJSON, PIPPO_EDDSA, PIPPO_ID);
     const config = {
         headers: requestHeaders
     };
@@ -47,5 +48,6 @@ const getToken = async () => {
     const result = await axios.get(`${url}/token/${request.token}/${request.owner}`);
     return result
 }
-console.log(await getToken())
+console.log(await sendMessage())
+//console.log(await getToken())
 
