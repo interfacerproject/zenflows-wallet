@@ -22,12 +22,16 @@ type Config struct {
 	Host        string
 	ZenflowsUrl string
 	RedisUrl    string
+	TTHost      string
+	TTUser      string
+	TTPass      string
 }
 
 type Wallet struct {
 	Ctx context.Context
 	RDB *redis.Client
 	ZenflowsUrl string
+	config *Config
 }
 
 type AddTokens struct {
@@ -40,7 +44,7 @@ func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, zenflows-sign")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, zenflows-sign, zenflows-id")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
 		if c.Request.Method == "OPTIONS" {
@@ -129,6 +133,9 @@ func loadEnvConfig() Config {
 		Host:        os.Getenv("HOST"),
 		Port:        port,
 		ZenflowsUrl: fmt.Sprintf("%s/api", os.Getenv("ZENFLOWS_URL")),
+		TTHost: os.Getenv("TT_HOST"),
+		TTUser: os.Getenv("TT_USER"),
+		TTPass: os.Getenv("TT_PASS"),
 		RedisUrl:   os.Getenv("REDIS_URL"),
 	}
 }
