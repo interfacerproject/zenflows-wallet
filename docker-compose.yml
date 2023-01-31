@@ -1,0 +1,13 @@
+version: "3"
+services:
+  db:
+    build:
+      dockerfile: Dockerfile.tarantool
+      context: .
+    restart: always
+    ports:
+      - 3500:3500
+    volumes:
+      - tt_data:/var/lib/tarantool
+volumes:
+  tt_data:
