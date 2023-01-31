@@ -12,9 +12,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/go-redis/redis/v8"
-	"context"
 )
 
 type Config struct {
@@ -27,16 +24,19 @@ type Config struct {
 	TTPass      string
 }
 
+type Storage interface {
+	AddDiff(string, string, int64) error
+	Read(string, string) (int64, error)
+}
+
 type Wallet struct {
-	Ctx context.Context
-	RDB *redis.Client
-	ZenflowsUrl string
-	config *Config
+	Storage Storage
+	Config  *Config
 }
 
 type AddTokens struct {
 	Owner  string `json:"owner"`
-	Amount int64    `json:"amount"`
+	Amount int64  `json:"amount"`
 	Token  string `json:"token"`
 }
 
@@ -77,25 +77,23 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 	}
 
 	var addTokens AddTokens
-	
+
 	if err := json.Unmarshal(body, &addTokens); err != nil {
 		result["error"] = err.Error()
 		return
 	}
-	if err := zenroomData.requestPublicKey(wallet.ZenflowsUrl, c.Request.Header.Get("zenflows-id")); err != nil {
+	if err := zenroomData.requestPublicKey(wallet.Config.ZenflowsUrl, c.Request.Header.Get("zenflows-id")); err != nil {
 		result["error"] = err.Error()
 		return
 	}
 	fmt.Println(c.Request.Header)
-	
+
 	if err := zenroomData.isAuth(); err != nil {
 		result["error"] = err.Error()
 		return
 	}
 
-	key := fmt.Sprintf("%s:%s", addTokens.Owner, addTokens.Token)
-
-	if err := wallet.RDB.IncrBy(wallet.Ctx, key, addTokens.Amount).Err(); err != nil {
+	if err := wallet.Storage.AddDiff(addTokens.Owner, addTokens.Token, addTokens.Amount); err != nil {
 		result["error"] = err.Error()
 		return
 	}
@@ -114,15 +112,11 @@ func (wallet *Wallet) getTokenHandler(c *gin.Context) {
 	token := c.Param("token")
 	owner := c.Param("owner")
 
-	key := fmt.Sprintf("%s:%s", owner, token) 
-
-	if val, err := wallet.RDB.Get(wallet.Ctx, key).Result(); err != nil {
-		result["error"] = err.Error()
-	} else if amount, err := strconv.ParseInt(val, 10, 64); err != nil {
+	if val, err := wallet.Storage.Read(owner, token); err != nil {
 		result["error"] = err.Error()
 	} else {
 		result["success"] = true
-		result["amount"] = amount
+		result["amount"] = val
 	}
 
 	return
@@ -133,10 +127,9 @@ func loadEnvConfig() Config {
 		Host:        os.Getenv("HOST"),
 		Port:        port,
 		ZenflowsUrl: fmt.Sprintf("%s/api", os.Getenv("ZENFLOWS_URL")),
-		TTHost: os.Getenv("TT_HOST"),
-		TTUser: os.Getenv("TT_USER"),
-		TTPass: os.Getenv("TT_PASS"),
-		RedisUrl:   os.Getenv("REDIS_URL"),
+		TTHost:      os.Getenv("TT_HOST"),
+		TTUser:      os.Getenv("TT_USER"),
+		TTPass:      os.Getenv("TT_PASS"),
 	}
 }
 
@@ -144,16 +137,14 @@ func main() {
 	config := loadEnvConfig()
 	log.Printf("Using backend %s\n", config.ZenflowsUrl)
 
-	ctx := context.Background()
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     config.RedisUrl,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	wallet := Wallet{ 
-		RDB: rdb,
-		Ctx: ctx,
-		ZenflowsUrl: config.ZenflowsUrl,
+	storage := &TTStorage{}
+	err := storage.Init(config.TTHost, config.TTUser, config.TTPass)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	wallet := Wallet{
+		Storage: storage,
+		Config:  &config,
 	}
 
 	r := gin.Default()
