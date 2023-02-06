@@ -26,7 +26,7 @@ const signRequest = async (json, key, id) => {
 const sendMessage = async () => {
     const request = {
 	    token: "idea",
-	    amount: 10,
+	    amount: 100,
 	    owner: "062TE0H7591KJCVT3DDEMDBF0R",
     }
     const requestJSON = JSON.stringify(request)
@@ -45,9 +45,20 @@ const getToken = async () => {
 	    owner: "062TE0H7591KJCVT3DDEMDBF0R",
     }
 
-    const result = await axios.get(`${url}/token/${request.token}/${request.owner}`);
+    const result = await axios.get(`${url}/token/${request.token}/${request.owner}?until=1675694839000`);
+    return result
+}
+
+const getTxs = async () => {
+    const request = {
+	    token: "idea",
+	    owner: "062TE0H7591KJCVT3DDEMDBF0R",
+    }
+
+    const result = await axios.get(`${url}/token/${request.token}/${request.owner}/last/10`);
     return result
 }
 console.log(await sendMessage())
-//console.log(await getToken())
+console.log(await getToken())
+console.log((await getTxs()).data)
 

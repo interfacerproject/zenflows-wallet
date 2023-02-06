@@ -24,9 +24,16 @@ type Config struct {
 	TTPass      string
 }
 
+type Transaction struct {
+	Id        uint64 `json:"id"`
+	Timestamp uint64 `json:"timestamp"`
+	Amount    int64  `json:"amount"`
+}
+
 type Storage interface {
 	AddDiff(string, string, int64) error
-	Read(string, string) (int64, error)
+	Read(string, string, uint64) (int64, error)
+	ReadTxs(string, string, int) ([]Transaction, error)
 }
 
 type Wallet struct {
@@ -68,7 +75,6 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		result["error"] = err.Error()
 		return
 	}
-	fmt.Println(body)
 
 	// Verify signature request
 	zenroomData := ZenroomData{
@@ -86,7 +92,6 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		result["error"] = err.Error()
 		return
 	}
-	fmt.Println(c.Request.Header)
 
 	if err := zenroomData.isAuth(); err != nil {
 		result["error"] = err.Error()
@@ -112,7 +117,13 @@ func (wallet *Wallet) getTokenHandler(c *gin.Context) {
 	token := c.Param("token")
 	owner := c.Param("owner")
 
-	if val, err := wallet.Storage.Read(owner, token); err != nil {
+	until, err := strconv.ParseUint(c.DefaultQuery("until", "0"), 10, 64)
+	if err != nil {
+		result["error"] = fmt.Sprintln("Not a number ", until)
+		return
+	}
+
+	if val, err := wallet.Storage.Read(owner, token, until); err != nil {
 		result["error"] = err.Error()
 	} else {
 		result["success"] = true
@@ -121,6 +132,33 @@ func (wallet *Wallet) getTokenHandler(c *gin.Context) {
 
 	return
 }
+
+func (wallet *Wallet) getTxsHandler(c *gin.Context) {
+	// Setup json response
+	result := map[string]interface{}{
+		"success": false,
+	}
+	defer c.JSON(http.StatusOK, result)
+
+	token := c.Param("token")
+	owner := c.Param("owner")
+
+	n, err := strconv.Atoi(c.Param("n"))
+	if err != nil || n < 0 {
+		result["error"] = fmt.Sprintln("Not a number ", n)
+		return
+	}
+
+	if val, err := wallet.Storage.ReadTxs(owner, token, n); err != nil {
+		result["error"] = err.Error()
+	} else {
+		result["success"] = true
+		result["txs"] = val
+	}
+
+	return
+}
+
 func loadEnvConfig() Config {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	return Config{
@@ -152,5 +190,6 @@ func main() {
 	r.Use(CORS())
 	r.POST("/token", wallet.addTokensHandler)
 	r.GET("/token/:token/:owner", wallet.getTokenHandler)
+	r.GET("/token/:token/:owner/last/:n", wallet.getTxsHandler)
 	r.Run()
 }

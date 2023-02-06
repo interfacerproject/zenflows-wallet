@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/tarantool/go-tarantool"
 	"log"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -14,6 +15,18 @@ type TTStorage struct {
 }
 
 const MAX_RETRY int = 10
+
+type byTimestamp []Transaction
+
+func (s byTimestamp) Len() int {
+	return len(s)
+}
+func (s byTimestamp) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s byTimestamp) Less(i, j int) bool {
+	return s[i].Timestamp < s[j].Timestamp
+}
 
 // TODO: use big integer for numbers (save them as strings)
 func (storage *TTStorage) Init(host, user, pass string) error {
@@ -36,7 +49,7 @@ func (storage *TTStorage) Init(host, user, pass string) error {
 
 func (storage *TTStorage) AddDiff(owner, token string, amount int64) error {
 	now := time.Now()
-	timestamp := uint64(now.UnixNano())
+	timestamp := uint64(now.UnixMilli())
 	_, err := storage.db.Insert("TXS", []interface{}{nil, owner, token, timestamp, strconv.FormatInt(int64(amount), 10)})
 	if err != nil {
 		return err
@@ -45,13 +58,13 @@ func (storage *TTStorage) AddDiff(owner, token string, amount int64) error {
 
 }
 
-func (storage *TTStorage) Read(owner, token string) (int64, error) {
+func (storage *TTStorage) Read(owner, token string, untilTimestamp uint64) (int64, error) {
 	// SELECT SUM(amount) ... doesn't work???? Problem with numbers/integer
 	// Now numbers are stored as strings....
 	//resp, err := storage.db.Execute("SELECT amount FROM txs WHERE owner = ? and token = ?", []interface{}{owner, token})
 
 	var amount int64 = 0
-	const limit uint32 = 5
+	const limit uint32 = 100
 	var offset uint32 = 0
 	for {
 		resp, err := storage.db.Select("TXS", "owner_token", offset, limit, tarantool.IterEq, []interface{}{owner, token})
@@ -69,9 +82,48 @@ func (storage *TTStorage) Read(owner, token string) (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			amount = amount + n
+			if untilTimestamp <= 0 || resp.Data[i].([]interface{})[3].(uint64) <= untilTimestamp {
+				amount = amount + n
+			}
 		}
 		offset = offset + limit
 	}
 	return amount, nil
+}
+func (storage *TTStorage) ReadTxs(owner, token string, n int) ([]Transaction, error) {
+	const limit uint32 = 100
+	var offset uint32 = 0
+	txs := []Transaction{}
+
+	for {
+		resp, err := storage.db.Select("TXS", "owner_token", offset, limit, tarantool.IterEq, []interface{}{owner, token})
+		if err != nil {
+			return nil, err
+		}
+		if resp.Error != "" {
+			return nil, errors.New(resp.Error)
+		}
+		if len(resp.Data) == 0 {
+			break
+		}
+		for i := 0; i < len(resp.Data); i = i + 1 {
+			n, err := strconv.ParseInt(resp.Data[i].([]interface{})[4].(string), 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			txs = append(txs, Transaction{
+				Id:        resp.Data[i].([]interface{})[0].(uint64),
+				Timestamp: resp.Data[i].([]interface{})[3].(uint64),
+				Amount:    n,
+			})
+		}
+		offset = offset + limit
+	}
+	sort.Sort(byTimestamp(txs))
+	if len(txs) > n {
+		n = len(txs) - n
+	} else {
+		n = 0
+	}
+	return txs[n:len(txs)], nil
 }
