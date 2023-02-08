@@ -65,9 +65,10 @@ bloks:
       Scenario 'eddsa': Public keys
       Scenario 'planetmint': Sign the planetmint transaction
 
+      Given I read the content of 'public_key.json'
       Given I have a planetmint endpoint named 'planetmint-endpoint'
-      Given I prepare the planetmint transaction to transfer 'amount' of 'token_txid' from 'sender' to 'receiver'
+      Given I prepare the planetmint transaction to transfer 'amount' of 'token_txid' from 'sender' to 'eddsa_public_key'
       Given I have a 'string' named 'planetmint transaction'
 
       Then print the 'planetmint transaction'
-    keysFile: _keys_planetmint.keys
+    keysFile: _keys_planetmint_endpoint.keys

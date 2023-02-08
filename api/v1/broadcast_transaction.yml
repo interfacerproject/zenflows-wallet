@@ -69,4 +69,4 @@ bloks:
 
       Then I prepare the signed planetmint transaction of 'planetmint_transaction' from 'sender'
       Then ask planetmint to broadcast the 'signed_planetmint_transaction'
-    keysFile: _keys_planetmint.keys
+    keysFile: _keys_planetmint_endpoint.keys
