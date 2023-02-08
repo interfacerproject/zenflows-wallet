@@ -1,0 +1,83 @@
+zenchain: 1.0
+start: transfer_token_1_setup.zen
+bloks:
+  transfer_token_1_setup.zen:
+    zenContent: |
+      Rule caller restroom-mw
+
+      Given I read the http request
+      Given I have a 'string dictionary' named 'http_request'
+
+      # keys
+      Given I have a 'string dictionary' named 'post'
+      Given I have a 'string dictionary' named 'tokens'
+
+      # data
+      Given I have a 'string dictionary' named 'request'
+      Given I have a 'string' named 'token' in 'request'
+
+      # prepare query for zenflows
+      When I pickup from path 'http_request.headers.zenflows-id'
+      When I create the 'string dictionary' named 'variables'
+      and I move the 'zenflows-id' to 'id' in 'variables'
+      and I move 'variables' in 'post'
+
+      # extract signature
+      When I pickup from path 'http_request.headers.zenflows-sign'
+
+      # prepare txid
+      When I create the copy of object named by 'token' from dictionary 'tokens'
+      and I rename 'copy' to 'token_txid'
+
+      Then print the 'post'
+      Then print the 'request'
+      Then print the 'zenflows-sign'
+      Then print the 'token_txid'
+    keys: _keys_setup.keys
+    next: transfer_token_2_verify.zen
+  transfer_token_2_verify.zen:
+    zenContent: |
+      Rule caller restroom-mw
+      Scenario 'eddsa': verify signature
+
+      Given I have a endpoint named 'zenflows-endpoint'
+      Given I connect to 'zenflows-endpoint' and pass it the content of 'post' and save the output into 'zenflows-result'
+      Given I have a 'base58 dictionary' named 'zenflows-result'
+
+      # data
+      Given I have a 'string' named 'token_txid'
+      Given I have a 'eddsa signature' named 'zenflows-sign'
+      Given I have a 'string dictionary' named 'request'
+
+      # verify signature
+      When I pickup a 'eddsa public key' from path 'zenflows-result.result.data'
+      and I rename 'data' to 'receiver'
+      When I verify the 'request' has a eddsa signature in 'zenflows-sign' by 'receiver'
+
+      Then print the 'receiver'
+      Then print the 'amount' from 'request'
+      Then print the 'token_txid'
+    keys: _keys_zenflows_endpoint.keys
+    next: transfer_token_3_transfer.zen
+  transfer_token_3_transfer.zen:
+    zenContent: |
+      Rule caller restroom-mw
+      Scenario 'eddsa': Public keys
+      Scenario 'planetmint': Sign the planetmint transaction
+
+      Given I read the content of 'public_key.json'
+      Given I read the content of 'keyring.json'
+
+      Given I have a planetmint endpoint named 'planetmint-endpoint'
+      Given I prepare the planetmint transaction to transfer 'amount' of 'token_txid' from 'eddsa_public_key' to 'receiver'
+      Given I have a 'string' named 'planetmint transaction'
+
+      When I create the planetmint signatures of 'planetmint transaction'
+
+      Then print the 'planetmint transaction'
+      Then print the 'planetmint signatures'
+      Then print the 'eddsa_public_key'
+
+      Then I prepare the signed planetmint transaction of 'planetmint_transaction' from 'eddsa_public_key'
+      Then ask planetmint to broadcast the 'signed_planetmint_transaction'
+    keysFile: _keys_planetmint_endpoint.keys
