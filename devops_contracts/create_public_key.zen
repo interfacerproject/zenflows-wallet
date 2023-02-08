@@ -1,0 +1,5 @@
+Scenario 'eddsa': create public key
+
+Given I have a 'keyring'
+When I create the eddsa public key
+Then print the 'eddsa_public_key'
