@@ -1,0 +1,3 @@
+# restroom files
+.env
+restroom/node_modules
