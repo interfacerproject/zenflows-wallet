@@ -24,7 +24,8 @@ dotenv.config();
 
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
-const ZENCODE_DIR = process.env.ZENCODE_DIR;
+const ZENCODE_DIR = process.env.ZENCODE_DIR || "api";
+const FILES_DIR = process.env.FILES_DIR || "data";
 const OPENAPI = JSON.parse(process.env.OPENAPI || true);
 
 const app = express();
