@@ -2,10 +2,10 @@ Rule caller restroom-mw
 Scenario 'eddsa': Public keys
 Scenario 'planetmint': Sign the planetmint transaction
 
-Given I read the content of 'public_key.json'
+Given I read the content of 'public_keys.json'
 Given I read the content of 'keyring.json'
 
-Given I have a planetmint endpoint named 'endpoint'
+Given I have a planetmint endpoint named 'planetmint-endpoint'
 Given I prepare the planetmint transaction to store 'amount' of 'asset' from 'eddsa_public_key'
 
 Given I have a 'keyring'
