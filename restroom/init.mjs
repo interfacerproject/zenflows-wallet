@@ -8,7 +8,7 @@ import { zencode_exec } from "zenroom";
 
 dotenv.config();
 
-const PRIVATE_ZENCODE_DIR = process.env.PRIVATE_ZENCODE_DIR || "devops_contracts";
+const ZENCODE_DIR = process.env.ZENCODE_DIR || "devops_contracts";
 const FILES_DIR = process.env.FILES_DIR || "data";
 
 const zen = async (zencode, keys, data) => {
@@ -29,7 +29,7 @@ const zen = async (zencode, keys, data) => {
 // generate private key
 let keyring = {}
 if(!fs.existsSync(path.join(FILES_DIR, "keyring.json"))){
-    const createKeyringScript = await fsp.readFile(path.join(PRIVATE_ZENCODE_DIR, "create_keyring.zen"), 'utf8');
+    const createKeyringScript = await fsp.readFile(path.join(ZENCODE_DIR, "create_keyring.zen"), 'utf8');
     const keys = await zen(createKeyringScript, null, null);
     if (!keys) {
 	console.error("Error in generate private keys");
@@ -46,7 +46,7 @@ else {
 }
 
 // generate public keys
-const generatePublicKeysScript = await fsp.readFile(path.join(PRIVATE_ZENCODE_DIR, "create_public_key.zen"), 'utf8');
+const generatePublicKeysScript = await fsp.readFile(path.join(ZENCODE_DIR, "create_public_key.zen"), 'utf8');
 let publicKeys = {};
 const pubKeys = await zen(generatePublicKeysScript, keyring, null);
 if (!pubKeys) {
@@ -57,7 +57,7 @@ if (!pubKeys) {
 try {
     await fsp.unlink(path.join(FILES_DIR, "public_keys.json"));
 } catch(e) {}
-Object.assign(publicKeys, result);
+Object.assign(publicKeys, JSON.parse(pubKeys.result));
 await fsp.writeFile(
     path.join(FILES_DIR, "public_keys.json"),
     JSON.stringify(publicKeys), {mode: 0o600});
