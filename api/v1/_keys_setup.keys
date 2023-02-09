@@ -1,9 +1,5 @@
 {
-    "post": {
-        "query": "query($id: ID!) {personPubkey(id: $id)}",
-    },
-    "tokens": {
-        "idea": "idea_tokens_txid",
-        "strength": "strength_tokens_txid"
-    }
+  "post": {
+    "query": "query($id: ID!) {personPubkey(id: $id)}"
+  }
 }
