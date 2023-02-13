@@ -1,4 +1,5 @@
 FROM golang:1.19-bullseye AS builder
+ENV GONOPROXY=
 RUN apt update && apt install -y build-essential git cmake vim python3 python3-pip zsh libssl-dev \
         && pip3 install meson ninja \
         && git clone https://github.com/dyne/Zenroom.git /zenroom
