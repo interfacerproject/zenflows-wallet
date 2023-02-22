@@ -1,19 +1,22 @@
-#!/bin/sh
+#!/bin/bash
 
-[ "$1" == "" ] && { >&2 echo "$0 token_name [other token names]"; exit 1;}
+if [[ "$1" == "" ]]; then
+    >&2 echo "$0 token_name [other token names]"
+    exit 1
+fi
 
 cd restroom
 
 cp .env.example .env
-# prepare .env file fro devops
+# prepare .env file for devops
 path_to_zencode=`cat .env | grep "^ZENCODE_DIR=" | cut -d= -f 2`
 devops_files_dir=`echo "$(dirname ${path_to_zencode})/devops_contracts"`
 sed -i "s+ZENCODE_DIR=${path_to_zencode}+ZENCODE_DIR=${devops_files_dir}+g" .env
 
 # create key and pk and start local restroom
 yarn run init
-pm2 start restroom.mjs --name=devops
-
+pm2 start restroom.mjs --name=devops --silent
+sleep 10
 # timestamp of creation
 time=$(($(date +%s%N)/1000000))
 
@@ -35,28 +38,28 @@ for token in "$@"; do
         }
     },
     "keys": {}
-    }' > ${restmp} 2>${errtmp}
+    }' >${restmp} 2>${errtmp}
     # handle error
     if [ `cat ${errtmp}` != "200" ]; then
         printf "\nerror: "
         cat ${errtmp}
         cat ${restmp}
-        echo
+        echo ""
         rm -f ${errtmp} ${restmp}
-        pm2 stop devops
-        pm2 delete devops
+        pm2 stop devops --silent
+        pm2 delete devops --silent
         sed -i "s+ZENCODE_DIR=${path_to_zencode}+ZENCODE_DIR=${devops_files_dir}+g" .env
         exit 1
     fi
     # handle success
-    txid=`cat ${restmp} | jq '.txid'`
+    txid=`cat ${restmp} | jq -r '.txid'`
     tmp=`mktemp` && jq --arg t "${token}" --arg id "${txid}" '.tokens[$t] = $id' ${path_to_zencode}/v1/_keys_setup.keys > ${tmp} && mv ${tmp} ${path_to_zencode}/v1/_keys_setup.keys
     rm -f ${errtmp} ${restmp}
 done
 
 # stop and delete restroom
-pm2 stop devops
-pm2 delete devops
+pm2 stop devops --silent
+pm2 delete devops --silent
 # reset original .env
 sed -i "s+ZENCODE_DIR=${devops_files_dir}+ZENCODE_DIR=${path_to_zencode}+g" .env
 pm2 start restroom.mjs
