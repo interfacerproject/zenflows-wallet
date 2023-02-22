@@ -1,7 +1,7 @@
 zenchain: 1.0
-start: broadcast_transaction_1_setup.zen
-bloks:
-  broadcast_transaction_1_setup.zen:
+start: v1/broadcast_transaction_1_setup.zen
+blocks:
+  v1/broadcast_transaction_1_setup.zen:
     zenContent: |
       Rule caller restroom-mw
 
@@ -26,9 +26,9 @@ bloks:
       Then print the 'post'
       Then print the 'request'
       Then print the 'zenflows-sign'
-    keys: _keys_setup.keys
-    next: broadcast_transaction_2_verify.zen
-  broadcast_transaction_2_verify.zen:
+    keysFile: v1/_keys_setup.keys
+    next: v1/broadcast_transaction_2_verify.zen
+  v1/broadcast_transaction_2_verify.zen:
     zenContent: |
       Rule caller restroom-mw
       Scenario 'eddsa': verify signature
@@ -50,9 +50,9 @@ bloks:
       Then print the 'amount' from 'request'
       Then print the 'planetmint transaction' from 'request'
       Then print the 'planetmint signatures' from 'request'
-    keys: _keys_zenflows_endpoint.keys
-    next: broadcast_transaction_3_broadcast.zen
-  broadcast_transaction_3_broadcast.zen:
+    keysFile: v1/_keys_zenflows_endpoint.keys
+    next: v1/broadcast_transaction_3_broadcast.zen
+  v1/broadcast_transaction_3_broadcast.zen:
     zenContent: |
       Rule caller restroom-mw
       Scenario 'eddsa': Public keys
@@ -69,4 +69,4 @@ bloks:
 
       Then I prepare the signed planetmint transaction of 'planetmint_transaction' from 'sender'
       Then ask planetmint to broadcast the 'signed_planetmint_transaction'
-    keysFile: _keys_planetmint_endpoint.keys
+    keysFile: v1/_keys_planetmint_endpoint.keys

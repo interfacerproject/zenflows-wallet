@@ -1,7 +1,7 @@
 zenchain: 1.0
-start: prepare_transaction_1_setup.zen
-bloks:
-  prepare_transaction_1_setup.zen:
+start: v1/prepare_transaction_1_setup.zen
+blocks:
+  v1/prepare_transaction_1_setup.zen:
     zenContent: |
       Rule caller restroom-mw
 
@@ -33,9 +33,9 @@ bloks:
       Then print the 'request'
       Then print the 'zenflows-sign'
       Then print the 'token_txid'
-    keys: _keys_setup.keys
-    next: prepare_transaction_2_verify.zen
-  prepare_transaction_2_verify.zen:
+    keysFile: v1/_keys_setup.keys
+    next: v1/prepare_transaction_2_verify.zen
+  v1/prepare_transaction_2_verify.zen:
     zenContent: |
       Rule caller restroom-mw
       Scenario 'eddsa': verify signature
@@ -57,9 +57,9 @@ bloks:
       Then print the 'sender'
       Then print the 'amount' from 'request'
       Then print the 'token_txid'
-    keys: _keys_zenflows_endpoint.keys
-    next: prepare_transaction_3_prepare_transaction.zen
-  prepare_transaction_3_prepare_transaction.zen:
+    keysFile: v1/_keys_zenflows_endpoint.keys
+    next: v1/prepare_transaction_3_prepare_transaction.zen
+  v1/prepare_transaction_3_prepare_transaction.zen:
     zenContent: |
       Rule caller restroom-mw
       Scenario 'eddsa': Public keys
@@ -71,4 +71,4 @@ bloks:
       Given I have a 'string' named 'planetmint transaction'
 
       Then print the 'planetmint transaction'
-    keysFile: _keys_planetmint_endpoint.keys
+    keysFile: v1/_keys_planetmint_endpoint.keys
