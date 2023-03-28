@@ -17,17 +17,15 @@
 package main
 
 import (
-	"bytes"
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"io"
+	"fmt"
+	"log"
 	"net/http"
 
 	zenroom "github.com/dyne/Zenroom/bindings/golang/zenroom"
 )
-
-const GQL_PERSON_PUBKEY string = "query($id: ID!) {personPubkey(id: $id)}"
 
 //go:embed zenflows-crypto/src/verify_graphql.zen
 var VERIFY string
@@ -43,28 +41,17 @@ type ZenroomResult struct {
 	Output []string `json:"output"`
 }
 
-// Fills ZenroomData with the public key requested to zenflows (from the email)
-func (data *ZenroomData) requestPublicKey(url string, id string) error {
-	query, err := json.Marshal(map[string]interface{}{
-		"query": GQL_PERSON_PUBKEY,
-		"variables": map[string]string{
-			"id": id,
-		},
-	})
-	resp, err := http.Post(url, "application/json", bytes.NewReader(query))
+func (data *ZenroomData) verifyDid(context string, baseUrl string) error {
+	// TODO: improve URL management and concat
+	url := fmt.Sprintf("%s%s:%s", baseUrl, context, data.EdDSAPublicKey)
+	log.Printf("Fetching %s\n", url)
+	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Problem fetching DID, status: %d", resp.StatusCode)
 	}
-	var result map[string]map[string]string
-	json.Unmarshal(body, &result)
-	if result["data"]["personPubkey"] == "" {
-		return errors.New(string(body))
-	}
-	data.EdDSAPublicKey = result["data"]["personPubkey"]
 	return nil
 }
 

@@ -31,13 +31,13 @@ import (
 )
 
 type Config struct {
-	Port        int
-	Host        string
-	ZenflowsUrl string
-	RedisUrl    string
-	TTHost      string
-	TTUser      string
-	TTPass      string
+	Port       int
+	Host       string
+	DidUrl     string
+	DidContext string
+	TTHost     string
+	TTUser     string
+	TTPass     string
 }
 
 type Transaction struct {
@@ -95,7 +95,8 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 	// Verify signature request
 	zenroomData := ZenroomData{
 		Gql:            b64.StdEncoding.EncodeToString(body),
-		EdDSASignature: c.Request.Header.Get("zenflows-sign"),
+		EdDSASignature: c.Request.Header.Get("did-sign"),
+		EdDSAPublicKey: c.Request.Header.Get("did-pk"),
 	}
 
 	var addTokens AddTokens
@@ -104,7 +105,9 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		result["error"] = err.Error()
 		return
 	}
-	if err := zenroomData.requestPublicKey(wallet.Config.ZenflowsUrl, c.Request.Header.Get("zenflows-id")); err != nil {
+	if err := zenroomData.verifyDid(
+		wallet.Config.DidContext,
+		wallet.Config.DidUrl); err != nil {
 		result["error"] = err.Error()
 		return
 	}
@@ -175,21 +178,23 @@ func (wallet *Wallet) getTxsHandler(c *gin.Context) {
 	return
 }
 
+// TODO: improve parsing and validation of env vars
 func loadEnvConfig() Config {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	return Config{
-		Host:        os.Getenv("HOST"),
-		Port:        port,
-		ZenflowsUrl: fmt.Sprintf("%s/api", os.Getenv("ZENFLOWS_URL")),
-		TTHost:      os.Getenv("TT_HOST"),
-		TTUser:      os.Getenv("TT_USER"),
-		TTPass:      os.Getenv("TT_PASS"),
+		Host:       os.Getenv("HOST"),
+		Port:       port,
+		DidUrl:     os.Getenv("DID_URL"),
+		DidContext: os.Getenv("DID_CONTEXT"),
+		TTHost:     os.Getenv("TT_HOST"),
+		TTUser:     os.Getenv("TT_USER"),
+		TTPass:     os.Getenv("TT_PASS"),
 	}
 }
 
 func main() {
 	config := loadEnvConfig()
-	log.Printf("Using backend %s\n", config.ZenflowsUrl)
+	log.Printf("Using DID %s\n", config.DidUrl)
 
 	storage := &TTStorage{}
 	err := storage.Init(config.TTHost, config.TTUser, config.TTPass)

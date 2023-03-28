@@ -20,34 +20,31 @@ import sign from "./sign_graphql.mjs"
 import { zencode_exec } from 'zenroom';
 import axios from 'axios';
 
-const PIPPO_EDDSA = "EtJtSqAG9mVHfKrKduS6aeyAE6okGXrfMW8fEQ6eqenh"
-const PIPPO_ID = "062TE0H7591KJCVT3DDEMDBF0R"
-const PLUTO_EDDSA = "2n4TEhoQ8ZwedJoUuJNbxv5W1cr5wHFYPcQmkk1EWj4t"
-const PLUTO_ID = "062TE0YPJD392CS1DPV9XWMDXC"
-const PAPERINO_EDDSA = "H7sbugVBZbmRX6M75WpzCi5vVVtaxvfLhovDijRAnZj"
-const PAPERINO_ID = "062TE18QJSQJ1PY6G1M7783148"
+const PIPPO_EDDSA = ...
+const PIPPO_EDDSA_PK = ...
+const PIPPO_ID = "IDDDPIPPO"
 
 const url="http://localhost:8000"
 //const url="https://gateway0.interfacer.dyne.org/wallet"
 
-const signRequest = async (json, key, id) => {
+const signRequest = async (json, key, pk) => {
 	const data = `{"gql": "${Buffer.from(json, 'utf8').toString('base64')}"}`
     const keys = `{"keyring": {"eddsa": "${key}"}}`
 	const {result} = await zencode_exec(sign(), {data, keys});
 	return {
-		'zenflows-sign': JSON.parse(result).eddsa_signature,
-		'zenflows-id': id,
+		'did-sign': JSON.parse(result).eddsa_signature,
+		'did-pk': pk,
 	}
 }
 
-const sendMessage = async () => {
+const addDiff = async () => {
     const request = {
 	    token: "idea",
 	    amount: 100,
-	    owner: "062TE0H7591KJCVT3DDEMDBF0R",
+	    owner: PIPPO_ID,
     }
     const requestJSON = JSON.stringify(request)
-    const requestHeaders =  await signRequest(requestJSON, PIPPO_EDDSA, PIPPO_ID);
+    const requestHeaders =  await signRequest(requestJSON, PIPPO_EDDSA, PIPPO_EDDSA_PK);
     const config = {
         headers: requestHeaders
     };
@@ -59,23 +56,22 @@ const sendMessage = async () => {
 const getToken = async () => {
     const request = {
 	    token: "idea",
-	    owner: "062TE0H7591KJCVT3DDEMDBF0R",
+	    owner: PIPPO_ID,
     }
 
-    const result = await axios.get(`${url}/token/${request.token}/${request.owner}?until=1675694839000`);
+    const result = await axios.get(`${url}/token/${request.token}/${request.owner}`);
     return result
 }
 
 const getTxs = async () => {
     const request = {
-	    token: "idea",
-	    owner: "062TE0H7591KJCVT3DDEMDBF0R",
+	    token: "strength",
+	    owner: PIPPO_ID,
     }
 
     const result = await axios.get(`${url}/token/${request.token}/${request.owner}/last/10`);
     return result
 }
-console.log(await sendMessage())
+console.log(await addDiff())
 console.log(await getToken())
-console.log((await getTxs()).data)
 
