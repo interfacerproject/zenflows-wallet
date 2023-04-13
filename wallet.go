@@ -59,7 +59,7 @@ type Wallet struct {
 
 type AddTokens struct {
 	Owner  string `json:"owner"`
-	Amount int64  `json:"amount"`
+	Amount string  `json:"amount"`
 	Token  string `json:"token"`
 }
 
@@ -105,6 +105,13 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		result["error"] = err.Error()
 		return
 	}
+
+	amount, err := strconv.ParseInt(addTokens.Amount, 10, 64)
+	if err != nil {
+		result["error"] = fmt.Sprintln("Not a number ", amount)
+		return
+	}
+
 	if err := zenroomData.verifyDid(
 		wallet.Config.DidContext,
 		wallet.Config.DidUrl); err != nil {
@@ -117,7 +124,7 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		return
 	}
 
-	if err := wallet.Storage.AddDiff(addTokens.Owner, addTokens.Token, addTokens.Amount); err != nil {
+	if err := wallet.Storage.AddDiff(addTokens.Owner, addTokens.Token, amount); err != nil {
 		result["error"] = err.Error()
 		return
 	}
@@ -146,7 +153,7 @@ func (wallet *Wallet) getTokenHandler(c *gin.Context) {
 		result["error"] = err.Error()
 	} else {
 		result["success"] = true
-		result["amount"] = val
+		result["amount"] = strconv.FormatInt(val, 10)
 	}
 
 	return

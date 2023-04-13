@@ -40,7 +40,7 @@ const signRequest = async (json, key, pk) => {
 const addDiff = async () => {
     const request = {
 	    token: "idea",
-	    amount: 100,
+	    amount: '100',
 	    owner: PIPPO_ID,
     }
     const requestJSON = JSON.stringify(request)
