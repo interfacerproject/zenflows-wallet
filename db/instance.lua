@@ -41,6 +41,18 @@ local function bootstrap()
 end
 box.once('wallet-0', bootstrap)
 
+-- Idempotency store for event-backed issuance: one row per paid event id, so
+-- a point issuance mints at most once per ValueFlows/social event. New box.once
+-- key so it provisions on existing instances too (wallet-0 never re-runs). The
+-- universal space grant in bootstrap already covers this space.
+local function bootstrap_payouts()
+    print("Start bootstrap payouts")
+    local payouts = box.schema.create_space('PAYOUTS', {engine = 'vinyl', if_not_exists = true})
+    payouts:create_index('primary', {parts = {{field = 1, type = 'string'}}, if_not_exists = true})
+    payouts:format({{name='EVENT_ID', type='string', is_nullable=false}})
+end
+box.once('wallet-1', bootstrap_payouts)
+
 -- load my_app module and call start() function
 -- with some app options controlled by sysadmins
 local m = require('wallet').start()
