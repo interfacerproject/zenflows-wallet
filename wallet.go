@@ -134,7 +134,13 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		return
 	}
 
-	// Idempotency: never pay the same event twice.
+	// Idempotency: never pay the same event twice. This check→mint→MarkPaid is
+	// not atomic: two concurrent issuances for the same event id (e.g. a
+	// double-submitted accept — the accept mutation itself is idempotent, so
+	// the id is identical) could both pass this guard and double-credit. It
+	// fails toward a rare over-credit on a single-user action, never a security
+	// hole or an unbacked mint. Accepted for this slice; it hardens when the
+	// authoritative payout ledger moves Zenflows-side (design §5).
 	paid, err := wallet.Storage.AlreadyPaid(req.Event.ID)
 	if err != nil {
 		result["error"] = err.Error()
