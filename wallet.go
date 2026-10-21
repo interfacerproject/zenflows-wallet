@@ -17,8 +17,11 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
 	_ "embed"
 	b64 "encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,8 +29,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/interfacerproject/zenflows-wallet/payout"
 )
 
 type Config struct {
@@ -50,17 +55,26 @@ type Storage interface {
 	AddDiff(string, string, int64) error
 	Read(string, string, uint64) (int64, error)
 	ReadTxs(string, string, int) ([]Transaction, error)
+	AlreadyPaid(string) (bool, error)
+	MarkPaid(string) error
 }
 
 type Wallet struct {
 	Storage Storage
 	Config  *Config
+	Pdp     *payout.Client
 }
 
-type AddTokens struct {
-	Owner  string `json:"owner"`
-	Amount string  `json:"amount"`
-	Token  string `json:"token"`
+// issueRequest is the event-backed body: the caller names the event that
+// justifies the issuance. No owner/token/amount — those are derived by the PDP.
+type issueRequest struct {
+	Event payout.EventRef `json:"event"`
+}
+
+func newRequestID() string {
+	var b [8]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
 }
 
 func CORS() gin.HandlerFunc {
@@ -92,23 +106,20 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		return
 	}
 
-	// Verify signature request
+	// Local authn floor: the body must be signed by the caller's DID key.
 	zenroomData := ZenroomData{
 		Gql:            b64.StdEncoding.EncodeToString(body),
 		EdDSASignature: c.Request.Header.Get("did-sign"),
 		EdDSAPublicKey: c.Request.Header.Get("did-pk"),
 	}
 
-	var addTokens AddTokens
-
-	if err := json.Unmarshal(body, &addTokens); err != nil {
+	var req issueRequest
+	if err := json.Unmarshal(body, &req); err != nil {
 		result["error"] = err.Error()
 		return
 	}
-
-	amount, err := strconv.ParseInt(addTokens.Amount, 10, 64)
-	if err != nil {
-		result["error"] = fmt.Sprintln("Not a number ", amount)
+	if req.Event.ID == "" || req.Event.Type == "" {
+		result["error"] = "missing event reference"
 		return
 	}
 
@@ -118,18 +129,54 @@ func (wallet *Wallet) addTokensHandler(c *gin.Context) {
 		result["error"] = err.Error()
 		return
 	}
-
 	if err := zenroomData.isAuth(); err != nil {
 		result["error"] = err.Error()
 		return
 	}
 
-	if err := wallet.Storage.AddDiff(addTokens.Owner, addTokens.Token, amount); err != nil {
+	// Idempotency: never pay the same event twice.
+	paid, err := wallet.Storage.AlreadyPaid(req.Event.ID)
+	if err != nil {
 		result["error"] = err.Error()
 		return
 	}
-	fmt.Println("Added ", addTokens.Owner)
+	if !payout.ShouldMint(paid) {
+		result["success"] = true
+		result["already_paid"] = true
+		return
+	}
 
+	// Authorize + derive payouts from the owning authority (the Zenflows PDP).
+	// owner/token/amount are NOT taken from the body; they come from the
+	// attestation of the referenced event.
+	proof := payout.Proof{
+		Signature:  c.Request.Header.Get("did-sign"),
+		PayloadB64: b64.StdEncoding.EncodeToString(body),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+	resp, derr := wallet.Pdp.Decide(ctx,
+		payout.BuildIssueRequest(newRequestID(), c.Request.Header.Get("did-pk"), proof, req.Event))
+	out := payout.InterpretPayouts(resp, derr)
+	if !out.Mint {
+		result["error"] = "not authorized for this issuance"
+		result["reason"] = out.ReasonCode
+		return
+	}
+
+	// Mint exactly the attested payouts, then mark the event paid.
+	for _, p := range out.Payouts {
+		if err := wallet.Storage.AddDiff(p.Recipient, p.Token, p.Amount); err != nil {
+			result["error"] = err.Error()
+			return
+		}
+	}
+	if err := wallet.Storage.MarkPaid(req.Event.ID); err != nil {
+		result["error"] = err.Error()
+		return
+	}
+
+	log.Printf("issued points for event %s (%s): %d payouts", req.Event.ID, req.Event.Type, len(out.Payouts))
 	result["success"] = true
 	return
 }
@@ -212,6 +259,7 @@ func main() {
 	wallet := Wallet{
 		Storage: storage,
 		Config:  &config,
+		Pdp:     payout.NewClientFromEnv(),
 	}
 
 	r := gin.Default()
