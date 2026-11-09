@@ -27,7 +27,7 @@ name: Create and publish a Docker image of the db
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'staging']
 
 env:
   REGISTRY: ghcr.io
