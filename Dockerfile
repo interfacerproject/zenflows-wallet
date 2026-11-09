@@ -14,17 +14,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-FROM golang:1.19-bullseye AS builder
+FROM golang:1.22-bookworm AS builder
 ENV GONOPROXY=
-RUN apt update && apt install -y build-essential git cmake vim python3 python3-pip zsh libssl-dev \
-        && pip3 install meson ninja \
-        && git clone https://github.com/dyne/Zenroom.git /zenroom
+RUN apt-get update && apt-get install -y build-essential git cmake python3 meson ninja-build libssl-dev zsh xxd \
+        && git clone https://github.com/dyne/Zenroom.git /zenroom \
+        && git -C /zenroom checkout 4388660e7b0b
+# The same Zenroom commit as the Go binding in go.mod (master dropped linux-go).
 RUN cd /zenroom && make linux-go
 ADD . /app
 WORKDIR /app
 RUN go build -o wallet .
 
-FROM dyne/devuan:chimaera
+# Devuan 5 (Debian 12 base): OpenSSL 3 and the glibc the builder linked against.
+FROM dyne/devuan:daedalus
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /root
 ENV HOST=0.0.0.0
 ENV PORT=80
@@ -32,6 +36,4 @@ ENV GIN_MODE=release
 EXPOSE 80
 COPY --from=builder /app/wallet /root/
 COPY --from=builder /zenroom/meson/libzenroom.so /usr/lib/
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /lib/
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /lib/
 CMD ["/root/wallet"]
